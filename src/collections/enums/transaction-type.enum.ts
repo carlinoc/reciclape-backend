@@ -1,0 +1,7 @@
+export enum TransactionType {
+  EARN_GARBAGE = 'EARN_GARBAGE',
+  EARN_RECYCLED = 'EARN_RECYCLED',
+  EARN_SURVEY = 'EARN_SURVEY',
+  REDEEM = 'REDEEM',
+  TRANSFER = 'TRANSFER',
+}
