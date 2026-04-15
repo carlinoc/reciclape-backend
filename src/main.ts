@@ -41,14 +41,14 @@ async function bootstrap() {
   );
 
   // ── Swagger ───────────────────────────────────────────────────────────────
-  // Solo activo fuera de producción.
+  // Activo si NODE_ENV !== 'production' O si ENABLE_SWAGGER=true
   // Para probar endpoints protegidos en /docs:
   //   1. Llama a POST /auth/admins/login con email y password
   //   2. Copia el accessToken de la respuesta
   //   3. Haz clic en el botón "Authorize 🔒" (arriba a la derecha)
   //   4. Pega el token en el campo "Value" y haz clic en "Authorize"
   //   5. Todos los endpoints protegidos ya funcionarán desde Swagger
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_SWAGGER === 'true') {
     const config = new DocumentBuilder()
       .setTitle('API ReciclaPE')
       .setDescription(
