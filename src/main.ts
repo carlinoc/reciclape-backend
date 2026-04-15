@@ -8,7 +8,7 @@ async function bootstrap() {
 
   // ── CORS ──────────────────────────────────────────────────────────────────
   // SEC-02/SEC-05: orígenes leídos desde variable de entorno, no hardcodeados.
-  // En producción: ALLOWED_ORIGINS=https://panel.reciclape.pe,https://app.reciclape.pe
+  // En Render: ALLOWED_ORIGINS=https://reciclape.onrender.com,https://panel.reciclape.pe,https://app.reciclape.pe
   const allowedOrigins = (
     process.env.ALLOWED_ORIGINS ||
     'http://localhost:3000,http://localhost:3001,http://localhost:4200,http://localhost:5173'
