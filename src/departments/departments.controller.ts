@@ -1,20 +1,14 @@
 import { Controller, Get } from '@nestjs/common';
 import { DepartmentsService } from './departments.service';
 import { ApiTags, ApiResponse, ApiOperation } from '@nestjs/swagger';
+import { Public } from '../auth/decorators/public.decorator';
 
-/**
- * Controlador de departamentos.
- * Gestiona las consultas relacionadas con departamentos (regiones).
- */
 @ApiTags('Ubigeo')
 @Controller('departments')
 export class DepartmentsController {
   constructor(private readonly departmentsService: DepartmentsService) {}
 
-  /**
-   * Obtiene la lista de todos los departamentos.
-   * @returns Lista completa de departamentos
-   */
+  @Public()
   @Get()
   @ApiOperation({ summary: 'Obtener todos los departamentos' })
   @ApiResponse({ status: 200, description: 'Lista de departamentos' })

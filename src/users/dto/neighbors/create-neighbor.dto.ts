@@ -23,9 +23,11 @@ export class CreateNeighborDto {
   @IsUUID()
   municipalityId: string;
   
-  @ApiProperty({ example: 'uuid-zone' })
+  @ApiProperty({ example: 'uuid-zone', required: false })
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null) ? undefined : value)
   @IsUUID()
-  zoneId: string;
+  zoneId?: string;
 
   @ApiProperty({ example: 'districtId' })
   @IsString()
@@ -43,7 +45,8 @@ export class CreateNeighborDto {
   @IsString()
   street: string;
 
-  @ApiProperty({ example: '45A' })
+  @ApiProperty({ example: '45A', required: false })
+  @IsOptional()
   @IsString()
   number?: string;
 
@@ -94,4 +97,28 @@ export class CreateNeighborDto {
   @IsOptional()
   @IsString()
   device?: string;
+
+  @ApiProperty({
+    description: 'Cantidad de minutos para recibir notificaciones. Opcional, por defecto 5.',
+    required: false,
+    type: Number,
+    example: 5,
+  })
+  @IsOptional()
+  @IsNumber()  
+  notifyBefore?: number;
+  @ApiProperty({
+    description: 'Activar o desactivar notificaciones push del vecino. Default: true.',
+    required: false,
+    type: Boolean,
+    example: true,
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  activateNotification?: boolean;
 }

@@ -1,4 +1,4 @@
-import { IsString, IsUUID, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsUUID, IsOptional, IsBoolean, IsLatitude, IsLongitude } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 
@@ -34,4 +34,21 @@ export class CreateZoneDto {
   })
   @IsBoolean()
   isActive?: boolean;
+  @ApiProperty({
+    example: -13.5380,
+    description: 'Latitud del centroide de la zona (para auto-detectar zona del vecino)',
+    required: false,
+  })
+  @IsOptional()
+  @IsLatitude()
+  centerLatitude?: number;
+
+  @ApiProperty({
+    example: -71.9157,
+    description: 'Longitud del centroide de la zona',
+    required: false,
+  })
+  @IsOptional()
+  @IsLongitude()
+  centerLongitude?: number;
 }

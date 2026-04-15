@@ -6,7 +6,8 @@ import {
   IsUUID,
   IsBoolean,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 
 export class CreateRecyclingTypeDto {
   @ApiProperty({ example: 'Plástico' })
@@ -34,4 +35,24 @@ export class CreateRecyclingTypeDto {
   @ApiProperty({ example: false })
   @IsBoolean()
   isGarbage: boolean;
+
+  @ApiPropertyOptional({ example: true, description: 'Estado activo del tipo de reciclaje', type: Boolean })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  isActive?: boolean;
+
+  @ApiPropertyOptional({ example: false, description: 'Estado archivado', type: Boolean })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  isArchived?: boolean;
 }

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsLatitude, IsLongitude } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 
@@ -40,6 +40,36 @@ export class CreateMunicipalityDto {
   @IsOptional()
   @IsString()
   hoursOfOperation?: string;
+
+  @ApiProperty({ example: 'Base Operativa Municipal - San Sebastián', description: 'Nombre de la base operativa' })
+  @IsOptional()
+  @IsString()
+  operationalBaseName?: string;
+
+  @ApiProperty({ example: -13.5150, description: 'Latitud de la base operativa' })
+  @IsOptional()
+  @IsLatitude()
+  operationalBaseLatitude?: number;
+
+  @ApiProperty({ example: -71.9800, description: 'Longitud de la base operativa' })
+  @IsOptional()
+  @IsLongitude()
+  operationalBaseLongitude?: number;
+
+  @ApiProperty({ example: 'Botadero Municipal de Jaquira', description: 'Nombre del botadero o relleno sanitario' })
+  @IsOptional()
+  @IsString()
+  dumpName?: string;
+
+  @ApiProperty({ example: -13.5514, description: 'Latitud del botadero' })
+  @IsOptional()
+  @IsLatitude()
+  dumpLatitude?: number;
+
+  @ApiProperty({ example: -72.0168, description: 'Longitud del botadero' })
+  @IsOptional()
+  @IsLongitude()
+  dumpLongitude?: number;
 
   @ApiProperty({
       description: 'Filtro de estado activo (true/false). Opcional.',

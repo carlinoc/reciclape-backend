@@ -5,12 +5,16 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { User } from '../users/entities/user.entity';
+import { Address } from '../users/entities/address.entity';
 import { OperatorProfile } from 'src/users/entities/operator-profile.entity';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, OperatorProfile]),
+    TypeOrmModule.forFeature([User, OperatorProfile, Address]),
+    UsersModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -21,6 +25,11 @@ import { OperatorProfile } from 'src/users/entities/operator-profile.entity';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [
+    AuthService,
+    JwtStrategy,   // Ahora inyecta Redis para verificar blacklist
+    JwtAuthGuard,  // Exportado para que APP_GUARD en AppModule pueda usarlo
+  ],
+  exports: [AuthService, JwtAuthGuard],
 })
 export class AuthModule {}

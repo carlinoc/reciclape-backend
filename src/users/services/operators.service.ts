@@ -1,5 +1,5 @@
 import * as bcrypt from 'bcrypt';
-import { BadRequestException, ConflictException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, HttpException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
@@ -10,6 +10,8 @@ import { UserType } from '../../user-type/enums/user-type.enum';
 import { UpdateOperatorDto } from '../dto/operators/update-operator.dto';
 import { FilterOperatorsDto } from '../dto/operators/filter-operators.dto';
 import { Truck } from 'src/trucks/entities/truck.entity';
+import { Municipality } from '../../municipalities/entities/municipality.entity';
+import { paginate } from 'src/common/dto/pagination.dto';
 
 @Injectable()
 export class OperatorsService {
@@ -46,19 +48,41 @@ export class OperatorsService {
         if (!truck) throw new ConflictException('El camión asignado no existe');
       }
 
-      // Verificar si el camión ya esta asignado a otro operador de la misma municipalidad
-      if (dto.assignedTruckId) {
-        const queryBuilder = this.usersRepo
+      // Verificar asignación de camión según rol:
+      // - DRIVER:    máximo 1 por camión
+      // - ASSISTANT: máximo 3 por camión
+      // - PROMOTER:  máximo 1 por camión
+      // - MANAGER:   máximo 1 por camión
+      if (dto.assignedTruckId && dto.personnelRole) {
+        const existingInRole = await this.usersRepo
           .createQueryBuilder('user')
-          .innerJoinAndSelect('user.operatorProfile', 'profile')
-          .where('user.userType = :type', { type: UserType.OPERATOR })
-          .andWhere('user.municipalityId = :municipalityId', { municipalityId: dto.municipalityId })
-          .andWhere('profile.assignedTruckId = :assignedTruckId', { assignedTruckId: dto.assignedTruckId });
+          .innerJoin('user.operatorProfile', 'profile')
+          .where('user.userType = :type',                   { type: UserType.OPERATOR })
+          .andWhere('user.municipalityId = :municipalityId',{ municipalityId: dto.municipalityId })
+          .andWhere('user.isArchived = false')
+          .andWhere('profile.assignedTruckId = :truckId',   { truckId: dto.assignedTruckId })
+          .andWhere('profile.personnelRole = :role',         { role: dto.personnelRole })
+          .getCount();
 
-        const operatorWithTruck = await queryBuilder.getOne();
-        if (operatorWithTruck) {
-          throw new ConflictException('El camión ya está asignado a otro operador de la misma municipalidad');
-        }        
+        const limits: Record<string, number> = {
+          DRIVER:    1,
+          ASSISTANT: 3,
+          PROMOTER:  1,
+          MANAGER:   1,
+        };
+        const maxAllowed = limits[dto.personnelRole] ?? 1;
+
+        if (existingInRole >= maxAllowed) {
+          const labels: Record<string, string> = {
+            DRIVER:    'conductor (DRIVER)',
+            ASSISTANT: 'ayudantes (ASSISTANT)',
+            PROMOTER:  'promotor (PROMOTER)',
+            MANAGER:   'gestor (MANAGER)',
+          };
+          throw new ConflictException(
+            `El camión ya tiene el máximo de ${maxAllowed} ${labels[dto.personnelRole]} permitido(s).`,
+          );
+        }
       }
 
       // 1. Crear Usuario
@@ -78,11 +102,25 @@ export class OperatorsService {
       });
       await queryRunner.manager.save(profile);
 
-      // 3. Crear Dirección (si se proporciona)
+      // 3. Crear Dirección (si se proporciona street)
       if (dto.street) {
+        // Si no viene districtId, lo resolvemos desde la municipalidad
+        let resolvedDistrictId = dto.districtId;
+        if (!resolvedDistrictId) {
+          const municipality = await queryRunner.manager.findOne(Municipality, {
+            where: { id: dto.municipalityId },
+            select: ['districtId'],
+          });
+          if (!municipality) throw new Error('Municipalidad no encontrada');
+          resolvedDistrictId = municipality.districtId;
+        }
+
         const address = queryRunner.manager.create(Address, {
-          ...dto,
-          userId: savedUser.id,
+          street:     dto.street,
+          number:     dto.number    || undefined,
+          zoneId:     dto.zoneId    || undefined,
+          districtId: resolvedDistrictId,
+          userId:     savedUser.id,
         });
         await queryRunner.manager.save(address);
       }
@@ -91,7 +129,11 @@ export class OperatorsService {
       return this.findOne(savedUser.id);
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      throw new InternalServerErrorException(error.message);
+
+      if (error instanceof HttpException) {
+        throw error; // Mantiene 409, 400, etc.
+      }
+      throw new InternalServerErrorException('Ocurrió un error al crear el operador', error.message);
     } finally {
       await queryRunner.release();
     }
@@ -99,58 +141,47 @@ export class OperatorsService {
 
   // --- READ ALL ---
   async findAll(filters: FilterOperatorsDto) {
-    const { municipalityId, zoneId, districtId, isActive, isArchived, personnelRole } = filters;
+    const { municipalityId, zoneId, districtId, isActive, isArchived, personnelRole, page = 1, limit = 20 } = filters;
 
     const queryBuilder = this.usersRepo
       .createQueryBuilder('user')
-      // Unimos el perfil de operador (Obligatorio para ser operador)
-      .innerJoinAndSelect('user.operatorProfile', 'profile') 
-      // Unimos la dirección (Opcional, pero necesaria para filtrar por zona/distrito)
+      .innerJoinAndSelect('user.operatorProfile', 'profile')
       .leftJoinAndSelect('user.address', 'address')
-      // Unimos el camión para que el listado sea útil en el frontend
       .leftJoinAndSelect('profile.truck', 'truck');
 
-    // Filtro base: Solo usuarios de tipo OPERADOR
     queryBuilder.andWhere('user.userType = :type', { type: UserType.OPERATOR });
 
-    // Filtro personnelRole
     if (personnelRole) {
       queryBuilder.andWhere('profile.personnelRole = :personnelRole', { personnelRole });
     }
-
-    // --- Filtros Dinámicos ---
-
     if (municipalityId) {
       queryBuilder.andWhere('user.municipalityId = :municipalityId', { municipalityId });
     }
-
     if (isActive !== undefined) {
-      // Aquí puedes decidir si filtrar por isActive del usuario o del perfil
       queryBuilder.andWhere('user.isActive = :isActive', { isActive });
     }
-
-    // Manejo de archivados (por defecto false)
     if (isArchived !== undefined) {
       queryBuilder.andWhere('user.isArchived = :isArchived', { isArchived });
     } else {
       queryBuilder.andWhere('user.isArchived = false');
     }
-
-    // --- Filtros de Dirección (Tabla addresses) ---
     if (zoneId) {
       queryBuilder.andWhere('address.zoneId = :zoneId', { zoneId });
     }
-
     if (districtId) {
       queryBuilder.andWhere('address.districtId = :districtId', { districtId });
     }
 
-    // Ordenar por apellido y nombre
     queryBuilder
       .orderBy('user.lastName', 'ASC')
       .addOrderBy('user.name', 'ASC');
 
-    return await queryBuilder.getMany();
+    const [data, total] = await queryBuilder
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    return paginate(data, total, page, limit);
   }
 
   // --- READ ONE ---
@@ -189,7 +220,53 @@ export class OperatorsService {
         await queryRunner.manager.update(User, id, userData);
       }
 
-      // 4. Actualizar tabla "operatorProfiles"
+      // 4. Validar límites por rol si cambia camión o rol
+      if (assignedTruckId || personnelRole) {
+        // Obtener el perfil actual para saber el estado real antes del update
+        const currentProfile = await queryRunner.manager.findOne(OperatorProfile, {
+          where: { userId: id },
+        });
+
+        const effectiveTruckId    = assignedTruckId  ?? currentProfile?.assignedTruckId;
+        const effectiveRole       = personnelRole     ?? currentProfile?.personnelRole;
+        const truckChanged        = assignedTruckId  !== undefined && assignedTruckId  !== currentProfile?.assignedTruckId;
+        const roleChanged         = personnelRole     !== undefined && personnelRole     !== currentProfile?.personnelRole;
+
+        if (effectiveTruckId && effectiveRole && (truckChanged || roleChanged)) {
+          const existingInRole = await this.usersRepo
+            .createQueryBuilder('user')
+            .innerJoin('user.operatorProfile', 'profile')
+            .where('user.id != :currentId',                { currentId: id })
+            .andWhere('user.userType = :type',             { type: UserType.OPERATOR })
+            .andWhere('user.municipalityId = :municipalityId', { municipalityId: user.municipalityId })
+            .andWhere('user.isArchived = false')
+            .andWhere('profile.assignedTruckId = :truckId',{ truckId: effectiveTruckId })
+            .andWhere('profile.personnelRole = :role',     { role: effectiveRole })
+            .getCount();
+
+          const limits: Record<string, number> = {
+            DRIVER:    1,
+            ASSISTANT: 3,
+            PROMOTER:  1,
+            MANAGER:   1,
+          };
+          const maxAllowed = limits[effectiveRole] ?? 1;
+
+          if (existingInRole >= maxAllowed) {
+            const labels: Record<string, string> = {
+              DRIVER:    'conductor (DRIVER)',
+              ASSISTANT: 'ayudantes (ASSISTANT)',
+              PROMOTER:  'promotor (PROMOTER)',
+              MANAGER:   'gestor (MANAGER)',
+            };
+            throw new ConflictException(
+              `El camión ya tiene el máximo de ${maxAllowed} ${labels[effectiveRole]} permitido(s).`,
+            );
+          }
+        }
+      }
+
+      // 4b. Actualizar tabla "operatorProfiles"
       const profileData: any = {};
       if (personnelRole) profileData.personnelRole = personnelRole;
       if (assignedTruckId !== undefined) profileData.assignedTruckId = assignedTruckId;
@@ -198,16 +275,35 @@ export class OperatorsService {
         await queryRunner.manager.update(OperatorProfile, { userId: id }, profileData);
       }
 
-      // 5. Actualizar tabla "addresses"
+      // 5. Actualizar tabla "addresses" (upsert)
+      const clean = (v: any) => (v === '' ? null : v);
       const addressData: any = {};
-      if (street) addressData.street = street;
-      if (number) addressData.number = number;
-      if (zoneId) addressData.zoneId = zoneId;
-      if (districtId) addressData.districtId = districtId;
+      if (street !== undefined)     addressData.street     = clean(street);
+      if (number !== undefined)     addressData.number     = clean(number);
+      if (zoneId !== undefined)     addressData.zoneId     = clean(zoneId)     || undefined;
+      if (districtId !== undefined) addressData.districtId = clean(districtId) || undefined;
+
+      // Eliminar claves undefined para no violar FKs
+      Object.keys(addressData).forEach(
+        (k) => addressData[k] === undefined && delete addressData[k],
+      );
 
       if (Object.keys(addressData).length > 0) {
-        // Usamos userId porque en addresses la relación es 1:1 o Many:1 con el usuario
-        await queryRunner.manager.update(Address, { userId: id }, addressData);
+        const existingAddress = await queryRunner.manager.findOne(Address, { where: { userId: id } });
+        if (existingAddress) {
+          await queryRunner.manager.update(Address, { userId: id }, addressData);
+        } else {
+          // Si no tiene districtId en el dto, resolverlo desde la municipalidad
+          if (!addressData.districtId) {
+            const municipality = await queryRunner.manager.findOne(Municipality, {
+              where: { id: user.municipalityId },
+              select: ['districtId'],
+            });
+            if (municipality) addressData.districtId = municipality.districtId;
+          }
+          const newAddress = queryRunner.manager.create(Address, { ...addressData, userId: id });
+          await queryRunner.manager.save(Address, newAddress);
+        }
       }
 
       // 6. Finalizar transacción
@@ -218,6 +314,9 @@ export class OperatorsService {
 
     } catch (error) {
       await queryRunner.rollbackTransaction();
+      if (error instanceof HttpException) {
+        throw error; // Mantiene 409, 400, etc.
+      }
       throw new InternalServerErrorException('Error al actualizar el operador: ' + error.message);
     } finally {
       await queryRunner.release();

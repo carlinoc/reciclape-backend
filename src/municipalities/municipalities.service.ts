@@ -82,6 +82,50 @@ export class MunicipalitiesService {
     return await queryBuilder.getMany();
   }
 
+  async findOneByDistrict(districtId: string) {
+    if (!districtId) throw new BadRequestException('El parámetro districtId es requerido');
+
+    const municipality = await this.repository
+      .createQueryBuilder('municipality')
+      .leftJoinAndSelect('municipality.district', 'district')
+      .where('district.id = :districtId', { districtId })
+      .andWhere('municipality.isArchived = false')
+      .andWhere('municipality.isActive = true')
+      .getOne();
+
+    if (!municipality) throw new NotFoundException(`No se encontró municipio para el distrito ${districtId}`);
+    return municipality;
+  }
+
+  async findByDistrict(districtId: string, isActive?: boolean, isArchived?: boolean) {
+    if (!districtId) {
+      throw new BadRequestException('El parámetro districtId es requerido');
+    }
+
+    // Query builder para hacer JOIN con districts y filtrar por distrito
+    const queryBuilder = this.repository
+      .createQueryBuilder('municipality')
+      .leftJoinAndSelect('municipality.district', 'district')
+      .where('district.id = :districtId', { districtId });
+      
+    // Solo agregar el filtro isActive si se proporciona explícitamente
+    if (isActive !== undefined) {
+      queryBuilder.andWhere('municipality.isActive = :isActive', { isActive });
+    }
+
+    // Solo agregar el filtro isArchived si se proporciona explícitamente
+    if (isArchived !== undefined) {
+      queryBuilder.andWhere('municipality.isArchived = :isArchived', { isArchived });
+    }else{
+      queryBuilder.andWhere('municipality.isArchived = false');
+    }
+
+    // Ordenar por nombre oficial
+    queryBuilder.orderBy('municipality.officialName', 'ASC');
+    
+    return await queryBuilder.getMany();
+  }
+
   /**
    * Obtiene un municipio por su ID con su distrito asociado.
    * @param id - ID del municipio

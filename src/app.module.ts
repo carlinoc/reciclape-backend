@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import configuration from './config/configuration';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { DistrictsModule } from './districts/districts.module';
 import { DepartmentsModule } from './departments/departments.module';
 import { ProvincesModule } from './provinces/provinces.module';
@@ -10,6 +12,8 @@ import { ZonesModule } from './zones/zones.module';
 import { DevicesModule } from './devices/devices.module';
 import { TrucksModule } from './trucks/trucks.module';
 import { TruckTypeModule } from './truck-type/truck-type.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { FleetModule } from './fleet/fleet.module';
 import { TruckPositionsModule } from './truck-positions/truck-positions.module';
 import { UsersModule } from './users/users.module';
 import { CollectionAreasModule } from './collection-areas/collection-areas.module';
@@ -25,6 +29,12 @@ import { CollectionsModule } from './collections/collections.module';
 import { VouchersModule } from './vouchers/vouchers.module';
 import { DebugModule } from './debug/debug.module';
 import { RedisModule } from '@nestjs-modules/ioredis';
+import { CollectionAreaTypesModule } from './collection-area-types/collection-area-types.module';
+import { DisposalSitesModule } from './disposal-sites/disposal-sites.module';
+import { TruckTripsModule } from './truck-trips/truck-trips.module';
+import { TruckConvoysModule } from './truck-convoys/truck-convoys.module';
+import { WorkSchedulesModule } from './work-schedules/work-schedules.module';
+import { ComplaintsModule } from './complaints/complaints.module';
 
 @Module({
   imports: [
@@ -84,10 +94,13 @@ import { RedisModule } from '@nestjs-modules/ioredis';
     MunicipalitiesModule,
     ZonesModule,
     DevicesModule,
+    CollectionAreaTypesModule,
     CollectionAreasModule,
     TruckTypeModule,
     TrucksModule,
     TruckPositionsModule,
+    FleetModule,
+    DashboardModule,
     RouteSchedulesModule,
     SurveysModule,
     SurveyQuestionsModule,
@@ -98,7 +111,22 @@ import { RedisModule } from '@nestjs-modules/ioredis';
     NotificationsModule,
     CollectionsModule,
     VouchersModule,
-    DebugModule,
+    DisposalSitesModule,
+    TruckTripsModule,
+    TruckConvoysModule,
+    WorkSchedulesModule,
+    ComplaintsModule,
+    // SEC-03: DebugModule solo disponible fuera de producción
+    ...(process.env.NODE_ENV !== 'production' ? [DebugModule] : []),
+  ],
+  providers: [
+    // SEC-01: Guard JWT global — protege TODOS los endpoints automáticamente.
+    // Para marcar un endpoint como público usar el decorador @Public()
+    // (ej: endpoints de login, POST /truck-positions, GET /ubigeo/*)
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
   ],
 })
 export class AppModule { }

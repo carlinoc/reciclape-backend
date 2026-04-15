@@ -1,48 +1,33 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
-# dependencies
+# ── Node ──────────────────────────────────────────
 node_modules/
 npm-debug.log
 yarn-error.log
-pnpm-lock.yaml
-package-lock.json
 
-# Expo
-.expo/
+# ── Build ─────────────────────────────────────────
 dist/
-web-build/
-expo-env.d.ts
+build/
 
-# Native
-.kotlin/
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
+# ── Entorno — NUNCA commitear credenciales ────────
+.env
+.env.*
+!.env.example
 
-# Metro
-.metro-health-check*
+# ── Firebase service account ──────────────────────
+firebase-config.json
 
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
-.DS_Store
-*.pem
-
-# local env files
-.env*.local
-
-# typescript
+# ── TypeScript ────────────────────────────────────
 *.tsbuildinfo
 
-# generated native folders
-/ios
-/android
+# ── Tests ─────────────────────────────────────────
+coverage/
 
-# Firebase
-firebase-config.json
+# ── macOS ─────────────────────────────────────────
+.DS_Store
+
+# ── Llaves y certificados ─────────────────────────
+*.pem
+*.key
+*.p12
+*.p8
+*.jks
+*.mobileprovision

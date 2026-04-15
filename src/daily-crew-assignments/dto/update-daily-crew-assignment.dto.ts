@@ -1,6 +1,9 @@
-import { PartialType } from '@nestjs/swagger';
-import { CreateDailyCrewAssignmentDto } from './create-daily-crew-assignment.dto';
+import { IsOptional, IsString } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
-export class UpdateDailyCrewAssignmentDto extends PartialType(
-  CreateDailyCrewAssignmentDto,
-) {}
+export class UpdateDailyCrewAssignmentDto {
+  @ApiPropertyOptional({ example: 'Nota actualizada' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}

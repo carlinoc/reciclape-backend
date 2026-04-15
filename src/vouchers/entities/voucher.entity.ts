@@ -53,12 +53,12 @@ export class Voucher {
   rewardCatalog: RewardCatalog;
 
   //RELACION CON USUARIO
-  @ManyToOne(() => User, (u) => u.voucher)
+  @ManyToOne(() => User, (u) => u.vouchers)
   @JoinColumn({ name: 'userId' })
   user: User;
   
   // RELACIÓN CON issuedByUserId
-  @ManyToOne(() => User, (u) => u.voucher)
+  @ManyToOne(() => User, (u) => u.issuedVouchers)
   @JoinColumn({ name: 'issuedByUserId' })
   issuedByUser: User;
 

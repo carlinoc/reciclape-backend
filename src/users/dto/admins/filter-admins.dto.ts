@@ -1,8 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsOptional, IsBoolean, IsString, IsUUID } from 'class-validator';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 
-export class FilterAdminsDto {
+export class FilterAdminsDto extends PaginationDto {
 
   @ApiPropertyOptional({
     description: 'Filtrar por municipalityId'

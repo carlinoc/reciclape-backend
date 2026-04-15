@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsEmail, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsEnum, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
+import { PersonnelRole } from '../../enums/personnel-role.enum';
 
 export class CreateOperatorDto {
   // Datos de User
@@ -36,20 +37,27 @@ export class CreateOperatorDto {
   municipalityId: string;
 
   // Datos de OperatorProfile
-  @ApiProperty({ example: 'DRIVER' })
-  @IsString() 
-  personnelRole: string;
+  @ApiProperty({ enum: PersonnelRole, example: PersonnelRole.DRIVER })
+  @IsEnum(PersonnelRole)
+  personnelRole: PersonnelRole;
 
   @ApiProperty({ example: 'uuid-truck' })
-  @IsUUID() 
-  @IsOptional() 
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null) ? undefined : value)
+  @IsUUID()
   assignedTruckId?: string;
 
-  @ApiProperty({
-    description: 'Estado del vecino (true/false). Opcional.',
-    required: false,
-    type: Boolean,
+  @ApiProperty({ description: 'Indica si el operario pertenece al pool de retenes', required: false, type: Boolean })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
   })
+  @IsBoolean()
+  isRetenPool?: boolean;
+
+  @ApiProperty({ description: 'Estado del operario (true/false). Opcional.', required: false, type: Boolean })
   @IsOptional()
   @Transform(({ value }) => {
     if (value === 'true') return true;
@@ -71,8 +79,9 @@ export class CreateOperatorDto {
   number?: string;
 
   @ApiProperty({ example: 'uuid-zone' })
-  @IsUUID() 
-  @IsOptional() 
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null) ? undefined : value)
+  @IsUUID()
   zoneId?: string;
 
   @ApiProperty({ example: '080501' })

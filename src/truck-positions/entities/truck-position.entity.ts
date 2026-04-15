@@ -1,5 +1,5 @@
 import { Truck } from 'src/trucks/entities/truck.entity';
-import { Column, Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
+import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 
 @Entity('truckPositions')
 export class TruckPosition {
@@ -29,7 +29,7 @@ export class TruckPosition {
   @Column({ type: 'float', nullable: true })
   accuracy: number;
 
-  @Column({ type: 'timestamptz' })
+  @CreateDateColumn({ type: 'timestamptz', name: 'timestamp' })
   timestamp: Date;
 
   @ManyToOne(() => Truck)

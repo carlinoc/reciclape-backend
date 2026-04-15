@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -9,6 +8,7 @@ import { Repository } from 'typeorm';
 import { CollectionArea } from './entities/collection-area.entity';
 import { CreateCollectionAreaDto } from './dto/create-collection-area.dto';
 import { UpdateCollectionAreaDto } from './dto/update-collection-area.dto';
+import { FilterCollectionAreaDto } from './dto/filter-collection-area.dto';
 
 @Injectable()
 export class CollectionAreasService {
@@ -21,13 +21,13 @@ export class CollectionAreasService {
     const exists = await this.collectionAreaRepo.findOne({
       where: {
         name: dto.name,
-        zoneId: dto.zoneId,
+        routeScheduleId: dto.routeScheduleId,
       },
     });
 
     if (exists) {
       throw new ConflictException(
-        'Ya existe un área con ese nombre en la zona',
+        'Ya existe un área con ese nombre en esta ruta',
       );
     }
 
@@ -35,51 +35,30 @@ export class CollectionAreasService {
     return this.collectionAreaRepo.save(area);
   }
 
-  async findByZoneId(
-    zoneId: string,
-    areaTypeId?: string,
-  ): Promise<CollectionArea[]> {
-    if (!zoneId) {
-      throw new BadRequestException('El parámetro zoneId es requerido');
+  async findAll(filter: FilterCollectionAreaDto): Promise<CollectionArea[]> {
+    const { routeScheduleId, areaTypeId } = filter;
+
+    const qb = this.collectionAreaRepo
+      .createQueryBuilder('ca')
+      .leftJoinAndSelect('ca.routeSchedule', 'routeSchedule')
+      .leftJoinAndSelect('ca.collectionAreaType', 'collectionAreaType');
+
+    if (routeScheduleId) {
+      qb.andWhere('ca.routeScheduleId = :routeScheduleId', { routeScheduleId });
     }
 
-    const queryBuilder = this.collectionAreaRepo
-      .createQueryBuilder('collectionArea')
-      .leftJoinAndSelect('collectionArea.zone', 'zone')
-      .leftJoinAndSelect('collectionArea.collectionAreaType', 'collectionAreaType')
-      .where('zone.id = :zoneId', { zoneId })
-      .andWhere('zone.isArchived = false');
-
-    if (areaTypeId !== undefined) {
-      queryBuilder.andWhere('collectionArea.collectionAreaType.id = :areaTypeId', { areaTypeId });
+    if (areaTypeId) {
+      qb.andWhere('ca.areaTypeId = :areaTypeId', { areaTypeId });
     }
 
-    // Ordenar por nombre
-    queryBuilder.orderBy('collectionArea.name', 'ASC');
-
-    return queryBuilder.getMany();
-  }
-
-  async findAll(areaTypeId?: string): Promise<CollectionArea[]> {
-    const queryBuilder = this.collectionAreaRepo.createQueryBuilder('collectionArea')
-      .leftJoinAndSelect('collectionArea.zone', 'zone')
-      .leftJoinAndSelect('collectionArea.collectionAreaType', 'collectionAreaType')
-      .where('zone.isArchived = false');
-
-      if (areaTypeId !== undefined) {
-        queryBuilder.andWhere('collectionArea.collectionAreaType.id = :areaTypeId', { areaTypeId });
-      }
-
-    // Ordenar por nombre
-    queryBuilder.orderBy('collectionArea.name', 'ASC');
-
-    return queryBuilder.getMany();
+    qb.orderBy('ca.name', 'ASC');
+    return qb.getMany();
   }
 
   async findOne(id: string): Promise<CollectionArea> {
     const area = await this.collectionAreaRepo.findOne({
       where: { id },
-      relations: ['zone', 'collectionAreaType'],
+      relations: ['routeSchedule', 'collectionAreaType'],
     });
 
     if (!area) {
@@ -89,15 +68,12 @@ export class CollectionAreasService {
     return area;
   }
 
-  async update(
-    id: string,
-    dto: UpdateCollectionAreaDto,
-  ): Promise<CollectionArea> {
+  async update(id: string, dto: UpdateCollectionAreaDto): Promise<CollectionArea> {
     const area = await this.findOne(id);
     Object.assign(area, dto);
 
-    if (dto.zoneId) {
-      area.zone = { id: dto.zoneId } as any;
+    if (dto.routeScheduleId) {
+      area.routeSchedule = { id: dto.routeScheduleId } as any;
     }
 
     if (dto.areaTypeId) {

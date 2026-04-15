@@ -13,18 +13,23 @@ export class TrucksController {
 
   @Get()
   @ApiOperation({ summary: 'Listar todos los camiones de una zona' })
-  findAll(@Param('zoneId') zoneId: string, @Query() filters: FilterTrucksDto) {
-    if (zoneId) {
-      return this.trucksService.findByZone(zoneId, filters.truckTypeId, filters.isActive, filters.isArchived);
-    }
+  findAll(@Query() filters: FilterTrucksDto) {
+    const { isActive, isArchived, truckTypeId, page, limit } = filters;
+    return this.trucksService.findAll(isActive, isArchived, page, limit);
+  }
 
-    return this.trucksService.findAll(filters.isActive, filters.isArchived);
+  @Get('zone/:zoneId')
+  @ApiOperation({ summary: 'Listar camiones de una zona (via routeSchedules)' })
+  findByZone(@Param('zoneId') zoneId: string, @Query() filters: FilterTrucksDto) {
+    const { isActive, isArchived, truckTypeId, page, limit } = filters;
+    return this.trucksService.findByZone(zoneId, truckTypeId, isActive, isArchived, page, limit);
   }
 
   @Get('municipality/:municipalityId')
   @ApiOperation({ summary: 'Listar todos los camiones de una municipalidad' })
   findByMunicipality(@Param('municipalityId') municipalityId: string, @Query() filters: FilterTrucksDto) {
-    return this.trucksService.findByMunicipality(municipalityId, filters.isActive, filters.isArchived);
+    const { isActive, isArchived, page, limit } = filters;
+    return this.trucksService.findByMunicipality(municipalityId, isActive, isArchived, page, limit);
   }
   
   @Get(':id')

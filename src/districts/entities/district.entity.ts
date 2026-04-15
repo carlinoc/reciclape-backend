@@ -22,6 +22,9 @@ export class District {
   @Column({ default: false })
   isArchived: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   archivedAt: Date;
+
+  @Column({ type: 'varchar', nullable: true })
+  location: string;
 }

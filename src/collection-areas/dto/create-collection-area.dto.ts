@@ -1,17 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, IsUUID } from 'class-validator';
-import { Column } from 'typeorm';
 
 export class CreateCollectionAreaDto {
   @ApiProperty({ example: 'Carigrande', description: 'Nombre de la área' })
   @IsString()
   @IsNotEmpty()
-  @Column({ length: 100 })
   name: string;
 
-  @ApiProperty({ example: 'uuid-zone', description: 'ID del zona' })
+  @ApiProperty({ example: 'uuid-route-schedule', description: 'ID de la ruta programada a la que pertenece esta área' })
   @IsUUID()
-  zoneId: string;
+  routeScheduleId: string;
 
   @ApiProperty({ example: 'uuid-area-type', description: 'ID del tipo de area' })
   @IsUUID()

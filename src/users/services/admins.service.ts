@@ -8,6 +8,7 @@ import { UserType } from '../../user-type/enums/user-type.enum';
 import { Address } from '../entities/address.entity';
 import { FilterAdminsDto } from '../dto/admins/filter-admins.dto';
 import { UpdateAdminDto } from '../dto/admins/update-admin.dto';
+import { Municipality } from '../../municipalities/entities/municipality.entity';
 
 @Injectable()
 export class AdminsService {
@@ -40,15 +41,27 @@ export class AdminsService {
         ...dto,
         password: await bcrypt.hash(dto.password, 10),
         userType: UserType.ADMIN,
+        adminRole: dto.adminRole ?? 'ADMIN', // default ADMIN si no se especifica
       });
       const savedUser = await queryRunner.manager.save(user);
 
       // 2. Crear Dirección vinculada
+      // Si no se envía districtId, lo obtenemos desde la municipalidad
+      let resolvedDistrictId = dto.districtId;
+      if (!resolvedDistrictId) {
+        const municipality = await queryRunner.manager.findOne(Municipality, {
+          where: { id: dto.municipalityId },
+          select: ['districtId'],
+        });
+        if (!municipality) throw new Error('Municipalidad no encontrada');
+        resolvedDistrictId = municipality.districtId;
+      }
+
       const address = queryRunner.manager.create(Address, {
         street: dto.street,
         number: dto.number,
-        zoneId: dto.zoneId,
-        districtId: dto.districtId,
+        zoneId: dto.zoneId || undefined,
+        districtId: resolvedDistrictId,
         userId: savedUser.id,
       });
       await queryRunner.manager.save(address);

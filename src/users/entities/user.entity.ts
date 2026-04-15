@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, OneToOne, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, OneToOne, OneToMany, UpdateDateColumn } from 'typeorm';
 import { Municipality } from 'src/municipalities/entities/municipality.entity';
 import { Address } from './address.entity';
 import { OperatorProfile } from './operator-profile.entity';
@@ -31,6 +31,11 @@ export class User {
   @Column({ length: 12, nullable: true, unique: true })
   dni?: string;
 
+  // Rol dentro del tipo ADMIN: SUPER_ADMIN (acceso total) | ADMIN (gestión operativa)
+  // null para NEIGHBOR y OPERATOR — solo aplica a usuarios con userType = ADMIN
+  @Column({ type: 'varchar', length: 20, nullable: true, default: null })
+  adminRole?: string | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
@@ -43,7 +48,7 @@ export class User {
   @Column({ default: false })
   isArchived: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   archivedAt: Date;
 
   @Column({ type: 'uuid' })
@@ -52,7 +57,7 @@ export class User {
   @Column({ type: 'text', nullable: true })
   fcmToken?: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   device?: string;
 
   // RELACIÓN CON MUNICIPALIDAD
@@ -71,20 +76,20 @@ export class User {
 
   // RELACIÓN CON COLLECTIONS
   // Un usuario tiene muchas colecciones
-  @OneToOne(() => Collection, (collection) => collection.user)  
-  collection: Collection;
+  @OneToMany(() => Collection, (collection) => collection.user)
+  collections: Collection[];
 
   // RELACIÓN CON COLLECTIONS COMO OPERADOR
-  @OneToOne(() => Collection, (collection) => collection.user)  
+  @OneToMany(() => Collection, (collection) => collection.operatorUser)
   operatedCollections: Collection[];
 
   // RELACIÓN CON VOUCHERS
   // Un usuario tiene muchos vouchers
-  @OneToOne(() => Voucher, (voucher) => voucher.user)
-  voucher: Voucher;
+  @OneToMany(() => Voucher, (voucher) => voucher.user)
+  vouchers: Voucher[];
   
   // RELACIÓN CON VOUCHERS COMO issuedByUserId
-  @OneToOne(() => Voucher, (voucher) => voucher.issuedByUser)
-  issuedByUser: Voucher;
+  @OneToMany(() => Voucher, (voucher) => voucher.issuedByUser)
+  issuedVouchers: Voucher[];
   
 }

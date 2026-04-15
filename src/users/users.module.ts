@@ -10,12 +10,15 @@ import { NeighborsService } from './services/neighbors.service';
 import { OperatorsService } from './services/operators.service';
 import { AdminsService } from './services/admins.service';
 import { PointsTransaction } from 'src/collections/entities/points-transaction.entity';
+import { Collection } from 'src/collections/entities/collection.entity';
+import { UserPoint } from 'src/user-points/entities/user-point.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Address, OperatorProfile, PointsTransaction]),
+    TypeOrmModule.forFeature([User, Address, OperatorProfile, PointsTransaction, UserPoint, Collection]),
   ],
   controllers: [NeighborsController, OperatorsController, AdminsController],
   providers: [NeighborsService, OperatorsService, AdminsService],
+  exports: [NeighborsService],
 })
 export class UsersModule {}

@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('collectionAreaTypes')
 export class CollectionAreaType {
@@ -8,9 +8,15 @@ export class CollectionAreaType {
     @Column({ length: 100 })
     name: string;
 
+    @Column({ type: 'int', default: 2 })
+    defaultVisitsPerWeek: number;
+
+    @Column({ default: false })
+    requiresDailyCollection: boolean;
+
     @Column({ default: false })
     isArchived: boolean;
 
-    @Column({ nullable: true })
+    @Column({ type: 'varchar', nullable: true })
     archivedAt: Date;
 }
