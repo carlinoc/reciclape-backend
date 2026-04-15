@@ -4,10 +4,12 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
+  CreateDateColumn,
 } from 'typeorm';
 import { Truck } from '../../trucks/entities/truck.entity';
 import { Zone } from '../../zones/entities/zones.entity';
-import { CollectionArea } from '../../collection-areas/entities/collection-area.entity';
+import { RouteShift, RouteTurnNumber } from '../enums/route-schedule.enums';
+
 
 @Entity('routeSchedules')
 export class RouteSchedule {
@@ -20,11 +22,14 @@ export class RouteSchedule {
   @Column({ type: 'uuid' })
   zoneId: string;
 
-  @Column({ type: 'uuid', nullable: true })
-  collectionAreaId?: string;
+  @Column({ type: 'int', array: true })
+  daysOfWeek: number[]; // [1,4] = Lunes y Jueves, [2,5] = Martes y Viernes, etc.
 
-  @Column({ type: 'int' })
-  dayOfWeek: number; // 1 = Monday, 7 = Sunday
+  @Column({ type: 'enum', enum: RouteShift })
+  shift: RouteShift; // MORNING | AFTERNOON | NIGHT
+
+  @Column({ type: 'enum', enum: RouteTurnNumber, default: RouteTurnNumber.FIRST })
+  turnNumber: RouteTurnNumber; // FIRST | SECOND
 
   @Column({ type: 'boolean', default: false })
   isMainRoad: boolean;
@@ -37,7 +42,25 @@ export class RouteSchedule {
 
   @Column({ type: 'jsonb', nullable: true })
   routeSegmentDetails?: any;
-  
+
+  @Column({ type: 'date' })
+  effectiveFrom: string;
+
+  @Column({ type: 'date', nullable: true })
+  effectiveTo?: string;
+
+  @Column({ default: true })
+  isActive: boolean;
+
+  @Column({ default: false })
+  isArchived: boolean;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  archivedAt?: Date;
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  createdAt: Date;
+
   /* Relations */
 
   @ManyToOne(() => Truck, (truck) => truck.routeSchedules, {
@@ -51,15 +74,4 @@ export class RouteSchedule {
   })
   @JoinColumn({ name: 'zoneId' })
   zone: Zone;
-
-  @ManyToOne(
-    () => CollectionArea,
-    (area) => area.routeSchedules,
-    {
-      nullable: true,
-      onDelete: 'SET NULL',
-    },
-  )
-  @JoinColumn({ name: 'collectionAreaId' })
-  collectionArea?: CollectionArea;
 }

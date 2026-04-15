@@ -8,6 +8,10 @@ import { TransactionType } from './enums/transaction-type.enum';
 import { FilterCollectionsDto } from './dto/filter-conllections.dto';
 import { UserPoint } from 'src/user-points/entities/user-point.entity';
 import { VerificationMethod } from './enums/verification-method.enum';
+import { RecyclingType } from 'src/recycling-type/entities/recycling-type.entity';
+import { User } from 'src/users/entities/user.entity';
+import { QrScanCollectionDto } from './dto/qr-scan-collection.dto';
+import { paginate } from 'src/common/dto/pagination.dto';
 
 @Injectable()
 export class CollectionsService {
@@ -81,40 +85,140 @@ export class CollectionsService {
     }
   }
 
+  // ── QR SCAN — escaneo simple desde la app móvil ──────────────────────────
+  async qrScan(dto: QrScanCollectionDto) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // 1. Validar que el vecino existe y obtener su municipalityId
+      const user = await queryRunner.manager.findOne(User, {
+        where: { id: dto.userId },
+        select: ['id', 'municipalityId', 'isActive'],
+      });
+      if (!user) throw new BadRequestException('Vecino no encontrado.');
+      if (!user.isActive) throw new BadRequestException('El vecino no está activo.');
+
+      // 2. Obtener el tipo de reciclaje "basura general" (isGarbage = true)
+      //    de la municipalidad del vecino
+      const garbageType = await queryRunner.manager.findOne(RecyclingType, {
+        where: { municipalityId: user.municipalityId, isGarbage: true, isActive: true, isArchived: false },
+      });
+      if (!garbageType) {
+        throw new BadRequestException(
+          'No existe un tipo de reciclaje "basura general" configurado para esta municipalidad. ' +
+          'Contactar al administrador.',
+        );
+      }
+
+      const pointsEarned = garbageType.pointsGiven;
+
+      // 3. Crear la colección
+      const collection = queryRunner.manager.create(Collection, {
+        userId:             dto.userId,
+        truckId:            dto.truckId,
+        municipalityId:     user.municipalityId,
+        operatorUserId:     dto.operatorUserId || undefined,
+        pointsAwarded:      pointsEarned,
+        verificationMethod: VerificationMethod.QR_NEIGHBOR,
+      } as any);
+      const savedCollection = await queryRunner.manager.save(Collection, collection);
+
+      // 4. Crear el ítem con quantity = 1 (una entrega)
+      const item = queryRunner.manager.create(CollectionItem, {
+        collectionId:    savedCollection.id,
+        recyclingTypeId: garbageType.id,
+        quantity:        1,
+        pointsEarned:    pointsEarned,
+      });
+      await queryRunner.manager.save(CollectionItem, item);
+
+      // 5. Registrar transacción de puntos
+      const tx = queryRunner.manager.create(PointsTransaction, {
+        userId:          dto.userId,
+        collectionId:    savedCollection.id,
+        points:          pointsEarned,
+        transactionType: TransactionType.EARN_GARBAGE,
+      });
+      await queryRunner.manager.save(PointsTransaction, tx);
+
+      // 6. Actualizar balance del vecino (upsert)
+      const updateResult = await queryRunner.manager
+        .createQueryBuilder()
+        .update('userPoints')
+        .set({ balancePoints: () => `"balancePoints" + ${pointsEarned}`, lastUpdatedAt: new Date() })
+        .where('"userId" = :userId', { userId: dto.userId })
+        .execute();
+
+      if (updateResult.affected === 0) {
+        await queryRunner.manager.insert('userPoints', {
+          userId: dto.userId,
+          balancePoints: pointsEarned,
+          lastUpdatedAt: new Date(),
+          createdAt: new Date(),
+        });
+      }
+
+      await queryRunner.commitTransaction();
+
+      return {
+        message:       '¡Entrega registrada correctamente!',
+        collectionId:  savedCollection.id,
+        pointsEarned,
+        totalPoints:   pointsEarned,
+        recyclingType: garbageType.name,
+        createdAt:     savedCollection.createdAt,
+      };
+
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      if (err instanceof BadRequestException) throw err;
+      throw new BadRequestException('Error al registrar la entrega: ' + err.message);
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
   async findAll(filters: FilterCollectionsDto) {
-    const { municipalityId, userId, operatorUserId, truckId } = filters;
+    const { municipalityId, userId, operatorUserId, truckId, zoneId, page = 1, limit = 20 } = filters;
 
     const queryBuilder = this.dataSource.getRepository(Collection).createQueryBuilder('collection')
       .leftJoinAndSelect('collection.items', 'collectionItems')
       .leftJoinAndSelect('collectionItems.recyclingType', 'recyclingType')
       .leftJoinAndSelect('collection.user', 'user')
+      .leftJoinAndSelect('user.address', 'address')
       .leftJoinAndSelect('collection.truck', 'truck')
       .leftJoinAndSelect('collection.operatorUser', 'operator');
 
     if (municipalityId) {
       queryBuilder.andWhere('collection.municipalityId = :municipalityId', { municipalityId });
     }
-
     if (userId) {
       queryBuilder.andWhere('collection.userId = :userId', { userId });
     }
-
     if (operatorUserId) {
       queryBuilder.andWhere('collection.operatorUserId = :operatorUserId', { operatorUserId });
     }
-    
     if (truckId) {
       queryBuilder.andWhere('collection.truckId = :truckId', { truckId });
+    }
+    if (zoneId) {
+      queryBuilder.andWhere('address.zoneId = :zoneId', { zoneId });
     }
 
     queryBuilder.orderBy('collection.createdAt', 'DESC');
 
-    return await queryBuilder.getMany();
+    const [data, total] = await queryBuilder
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
 
+    return paginate(data, total, page, limit);
   }
 
   async findOne(id: string) {
-    const collection = this.dataSource.getRepository(Collection).findOne({
+    const collection = await this.dataSource.getRepository(Collection).findOne({
       where: { id },
       relations: ['items', 'user', 'truck', 'operatorUser']
     });

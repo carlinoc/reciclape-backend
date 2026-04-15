@@ -1,5 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany, CreateDateColumn, OneToOne } from 'typeorm';
-import { Zone } from 'src/zones/entities/zones.entity';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany, CreateDateColumn, UpdateDateColumn, OneToOne } from 'typeorm';
+import { RegistrationStatus } from '../enums/registration-status.enum';
 import { Device } from 'src/devices/entities/device.entity';
 import { TruckType } from 'src/truck-type/entities/truck-type.entity';
 import { RouteSchedule } from 'src/route-schedules/entities/route-schedule.entity';
@@ -12,22 +12,19 @@ export class Truck {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true })
+  @Column({ type: 'varchar', unique: true, nullable: true })
   licensePlate: string;
 
   @Column()
   truckTypeId: string;
 
-  @Column()
-  zoneId: string;
-
   @Column({ default: true })
   isActive: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   deviceId?: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   qrCode: string;
 
   @CreateDateColumn()
@@ -36,19 +33,27 @@ export class Truck {
   @Column({ default: false })
   isArchived: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   archivedAt: Date;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   municipalityId: string;
-  
+
+  @Column({ nullable: true, type: 'int' })
+  capacity: number;
+
+  @Column({ nullable: true, type: 'int' })
+  volume: number;
+
+  @Column({ type: 'varchar', length: 20, default: RegistrationStatus.ACTIVE })
+  registrationStatus: RegistrationStatus;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+
   @ManyToOne(() => TruckType)
   @JoinColumn({ name: 'truckTypeId' })
   truckType: TruckType;
-
-  @ManyToOne(() => Zone)
-  @JoinColumn({ name: 'zoneId' })
-  zone: Zone;
 
   @ManyToOne(() => Device, { nullable: true })
   @JoinColumn({ name: 'deviceId' })

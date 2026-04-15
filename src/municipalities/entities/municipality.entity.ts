@@ -18,23 +18,43 @@ export class Municipality {
   @JoinColumn({ name: 'districtId' })
   district: District;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   municipalityType: string;
 
   @Column({ nullable: true, type: 'text' })
   address: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   phone: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   website: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   mayorName: string;
 
   @Column({ nullable: true, type: 'text' })
   hoursOfOperation: string;
+
+  // BASE OPERATIVA
+  @Column({ type: 'varchar', length: 150, nullable: true })
+  operationalBaseName: string;
+
+  // BOTADERO / RELLENO SANITARIO
+  @Column({ type: 'varchar', length: 150, nullable: true })
+  dumpName: string;
+
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+  dumpLatitude: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+  dumpLongitude: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+  operationalBaseLatitude: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+  operationalBaseLongitude: number;
 
   @Column({ default: true })
   isActive: boolean;
@@ -42,7 +62,7 @@ export class Municipality {
   @Column({ default: false })
   isArchived: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   archivedAt: Date;
 
   // RELACIÓN CON USUARIO

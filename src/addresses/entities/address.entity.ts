@@ -40,7 +40,7 @@ export class Address {
   @JoinColumn({ name: 'zoneId' })
   zone: Zone;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   qrCode?: string;
 
   @CreateDateColumn({ type: 'timestamptz' })
@@ -51,6 +51,10 @@ export class Address {
 
   @Column()
   userId: string;
+
+  // null = usar modo proximidad (200m). 5, 10 o 15 = avisar X minutos antes según velocidad del camión
+  @Column({ type: 'int', nullable: true })
+  notifyBefore?: number;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'userId' })

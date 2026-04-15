@@ -52,7 +52,7 @@ export class RewardCatalog {
   @Column({ default: false })
   isArchived: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   archivedAt: Date;
 
   //RELACION CON VOUCHERS

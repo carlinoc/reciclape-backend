@@ -4,9 +4,10 @@ import { TrucksService } from './trucks.service';
 import { TrucksController } from './trucks.controller';
 import { Truck } from './entities/truck.entity';
 import { OperatorProfile } from 'src/users/entities/operator-profile.entity';
+import { RouteSchedule } from 'src/route-schedules/entities/route-schedule.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Truck, OperatorProfile])],
+  imports: [TypeOrmModule.forFeature([Truck, OperatorProfile, RouteSchedule])],
   controllers: [TrucksController],
   providers: [TrucksService],
 })

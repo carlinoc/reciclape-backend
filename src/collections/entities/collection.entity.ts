@@ -48,7 +48,7 @@ export class Collection {
   municipality: Municipality;
 
   //RELACION CON USUARIO
-  @ManyToOne(() => User, (u) => u.collection)
+  @ManyToOne(() => User, (u) => u.collections)
   @JoinColumn({ name: 'userId' })
   user: User;
 

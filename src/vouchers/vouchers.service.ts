@@ -8,6 +8,8 @@ import { PointsTransaction } from '../collections/entities/points-transaction.en
 import { RewardCatalog } from '../rewards-catalog/entities/reward-catalog.entity';
 import { TransactionType } from 'src/collections/enums/transaction-type.enum';
 import { VoucherStatus } from './enums/voucher-status.enum';
+import { randomBytes } from 'crypto';
+import { PaginationDto, paginate } from 'src/common/dto/pagination.dto';
 
 @Injectable()
 export class VouchersService {
@@ -25,26 +27,34 @@ export class VouchersService {
     try {
       const { userId, rewardCatalogId } = createDto;
 
-      // 1. Validar Stock del Premio
-      const reward = await queryRunner.manager.findOne(RewardCatalog, {
-        where: { id: rewardCatalogId },
-      });
+      // 1. Validar Stock del Premio — SELECT FOR UPDATE bloquea la fila hasta el COMMIT.
+      // Esto serializa canjes simultáneos: el segundo canje espera al primero antes de
+      // leer el stock, eliminando la race condition donde ambos pasaban la validación.
+      const reward = await queryRunner.manager
+        .createQueryBuilder(RewardCatalog, 'r')
+        .setLock('pessimistic_write')
+        .where('r.id = :id', { id: rewardCatalogId })
+        .getOne();
       if (!reward || reward.stock <= 0) throw new Error('Premio sin stock disponible.');
 
-      // 2. Validar Saldo del Usuario
-      const userPoints = await queryRunner.manager.findOne(UserPoint, {
-        where: { userId },
-      });
+      // 2. Validar Saldo del Usuario — también con FOR UPDATE para evitar doble descuento.
+      const userPoints = await queryRunner.manager
+        .createQueryBuilder(UserPoint, 'up')
+        .setLock('pessimistic_write')
+        .where('up.userId = :userId', { userId })
+        .getOne();
       if (!userPoints || userPoints.balancePoints < reward.pointsRequired) {
         throw new Error('Puntos insuficientes para este canje.');
       }
+
+      const voucherCode = randomBytes(4).toString('hex').toUpperCase();
 
       // 3. Crear el Voucher en estado GENERATED
       const voucher = queryRunner.manager.create(Voucher, {
         ...createDto,
         pointsUsed: reward.pointsRequired,
         status: VoucherStatus.GENERATED,
-        voucherCode: Math.random().toString(36).substring(2, 10).toUpperCase(),
+        voucherCode: voucherCode,
         issuedAt: new Date(),
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 días de validez
       });
@@ -90,10 +100,11 @@ export class VouchersService {
     voucher.status = VoucherStatus.REDEEMED;
     voucher.redeemedAt = new Date();
     await this.voucherRepo.save(voucher);
-    return {
-      statusCode: 200,
-      message: `Voucher ${id} marcado como REDEEMED.`,
-    };
+
+    return this.voucherRepo.findOne({
+      where: { id },
+      relations: ['rewardCatalog', 'user'],
+    });
   }
 
   // Cambiar a EXPIRED (Proceso que se puede llamar por tarea programada o manual)
@@ -104,10 +115,11 @@ export class VouchersService {
 
     voucher.status = VoucherStatus.EXPIRED;
     await this.voucherRepo.save(voucher);
-    return {
-      statusCode: 200,
-      message: `Voucher ${id} marcado como EXPIRED.`,
-    };
+
+    return this.voucherRepo.findOne({
+      where: { id },
+      relations: ['rewardCatalog', 'user'],
+    });
   }
 
   async findAll(municipalityId?: string) {
@@ -117,4 +129,46 @@ export class VouchersService {
       order: { issuedAt: 'DESC' }
     });
   }
+
+  async findByMunicipality(municipalityId: string, pagination: PaginationDto, rewardCatalogId?: string, userId?: string, status?: string) {
+    if (!municipalityId) {
+      throw new BadRequestException('El parámetro municipalityId es requerido');
+    }
+
+    const { page = 1, limit = 20 } = pagination;
+
+    const queryBuilder = this.voucherRepo
+      .createQueryBuilder('voucher')
+      .leftJoinAndSelect('voucher.rewardCatalog', 'rewardCatalog')
+      .leftJoinAndSelect('voucher.user', 'user')
+      .where('voucher.municipalityId = :municipalityId', { municipalityId })
+      .orderBy('voucher.issuedAt', 'DESC');
+
+    if (rewardCatalogId) {
+      queryBuilder.andWhere('voucher.rewardCatalogId = :rewardCatalogId', { rewardCatalogId });
+    }
+    if (userId) {
+      queryBuilder.andWhere('voucher.userId = :userId', { userId });
+    }
+    if (status) {
+      queryBuilder.andWhere('voucher.status = :status', { status });
+    }
+
+    const [data, total] = await queryBuilder
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    return paginate(data, total, page, limit);
+  }
+
+  async findOne(id: string) {
+    const voucher = await this.voucherRepo.findOne({
+      where: { id },
+      relations: ['rewardCatalog', 'user'],
+    });
+    if (!voucher) throw new NotFoundException('Voucher no encontrado.');
+    return voucher;
+  }
+  
 }

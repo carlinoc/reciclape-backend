@@ -13,9 +13,14 @@ export class FilterRewardCatalogsDto {
 
   @ApiPropertyOptional({
     description: 'Filtrar solo recompensas activas',
-    example: true,
+    type: Boolean,
   })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
   @IsBoolean()
   isActive?: boolean;
 

@@ -13,6 +13,14 @@ export class FilterMunicipalitiesDto {
   provinceId?: string;
 
   @ApiPropertyOptional({
+    description: 'ID del distrito (6 dígitos), opcional',
+    example: '080501',
+  })
+  @IsOptional()
+  @IsString()
+  districtId?: string;
+
+  @ApiPropertyOptional({
     description: 'Filtrar por estado activo, opcional',
     example: true,
     type: Boolean,

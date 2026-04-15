@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsUUID, IsNumber, IsOptional, Max, Min } from 'class-validator';
+import { IsDateString, IsNotEmpty, IsUUID, IsNumber, IsOptional, Max, Min } from 'class-validator';
 
 export class CreateTruckPositionDto {
   @ApiProperty( { example: 'uuid-truck-id' })
@@ -29,4 +29,11 @@ export class CreateTruckPositionDto {
   @IsNumber()
   @IsOptional()
   accuracy?: number;
+  @ApiPropertyOptional({
+    example: '2026-03-16T05:30:00Z',
+    description: 'Timestamp ISO 8601 del dispositivo GPS. Si se omite, el servidor usa la hora de recepción.',
+  })
+  @IsOptional()
+  @IsDateString()
+  timestamp?: string;
 }

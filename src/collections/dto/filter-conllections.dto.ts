@@ -1,15 +1,13 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
-import { IsOptional, IsBoolean, IsString, IsUUID } from 'class-validator';
+import { ApiPropertyOptional, IntersectionType } from '@nestjs/swagger';
+import { IsOptional, IsUUID } from 'class-validator';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 
-export class FilterCollectionsDto {
-  @ApiPropertyOptional({
-    description: 'Filtrar por municipalityId'
-  })
+export class FilterCollectionsDto extends PaginationDto {
+  @ApiPropertyOptional({ description: 'Filtrar por municipalityId' })
   @IsOptional()
   @IsUUID()
   municipalityId?: string;
-  
+
   @ApiPropertyOptional({ description: 'Filtrar por userId' })
   @IsOptional()
   @IsUUID()
@@ -19,9 +17,14 @@ export class FilterCollectionsDto {
   @IsOptional()
   @IsUUID()
   operatorUserId?: string;
-  
+
   @ApiPropertyOptional({ description: 'Filtrar por truckId' })
   @IsOptional()
   @IsUUID()
   truckId?: string;
+
+  @ApiPropertyOptional({ description: 'Filtrar por zoneId' })
+  @IsOptional()
+  @IsUUID()
+  zoneId?: string;
 }

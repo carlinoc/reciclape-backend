@@ -12,6 +12,7 @@ import { MunicipalitiesService } from './municipalities.service';
 import { CreateMunicipalityDto } from './dto/create-municipality.dto';
 import { UpdateMunicipalityDto } from './dto/update-municipality.dto';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Public } from '../auth/decorators/public.decorator';
 import { FilterMunicipalitiesDto } from './dto/filter-municipalities.dto';
 
 /**
@@ -47,6 +48,11 @@ export class MunicipalitiesController {
     if (filters.provinceId) {
       return this.service.findByProvince(filters.provinceId, filters.isActive, filters.isArchived);
     }
+
+    //Si viene districtId, filtra por distrito
+    if (filters.districtId) {
+      return this.service.findByDistrict(filters.districtId, filters.isActive, filters.isArchived);
+    }
     
     // Si no viene provinceId, lista todas
     return this.service.findAll(filters.isActive);
@@ -57,6 +63,16 @@ export class MunicipalitiesController {
    * @param id - ID del municipio
    * @returns Datos del municipio
    */
+  @Public()
+  @Get('by-district/:districtId')
+  @ApiOperation({
+    summary: 'Obtener municipio por districtId (PÚBLICO — sin auth)',
+    description: 'Devuelve todos los datos del municipio asociado a un distrito. Usado en el registro de vecinos para pre-cargar los datos de la municipalidad.',
+  })
+  findByDistrict(@Param('districtId') districtId: string) {
+    return this.service.findOneByDistrict(districtId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Obtener un municipio' })
   findOne(@Param('id') id: string) {

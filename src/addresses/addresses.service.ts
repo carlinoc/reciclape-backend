@@ -21,6 +21,7 @@ export class AddressesService {
       number: dto.number,
       apartment: dto.apartment,
       qrCode: dto.qrCode,
+      notifyBefore: dto.notifyBefore ?? null,
       location: {
         type: 'Point',
         coordinates: [dto.longitude, dto.latitude],

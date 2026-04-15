@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString, Length, IsNumber } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, Length, IsNumber, IsIn } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateAddressDto {
@@ -44,4 +44,15 @@ export class CreateAddressDto {
   @IsString()
   @IsNotEmpty()
   userId: string;
+
+  @ApiProperty({
+    example: 10,
+    description: 'Minutos de anticipación para notificar al vecino según tiempo estimado de llegada del camión. Valores válidos: 5, 10, 15. Si es null, se usa el modo por proximidad (radio de 200m).',
+    required: false,
+    enum: [5, 10, 15],
+  })
+  @IsOptional()
+  @IsNumber()
+  @IsIn([5, 10, 15], { message: 'notifyBefore debe ser 5, 10 o 15 minutos' })
+  notifyBefore?: number;
 }

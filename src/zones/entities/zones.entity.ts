@@ -19,6 +19,12 @@ export class Zone {
   @Column({ length: 20, nullable: true })
   color: string;
 
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+  centerLatitude: number | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+  centerLongitude: number | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
@@ -28,7 +34,7 @@ export class Zone {
   @Column({ default: false })
   isArchived: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   archivedAt: Date;
 
   @OneToMany(() => RouteSchedule, (routeSchedule) => routeSchedule.zone)

@@ -10,10 +10,10 @@ export class Address {
   @Column()
   street: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   number?: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   apartment?: string;
 
   @Column({
@@ -26,14 +26,20 @@ export class Address {
     coordinates: number[]; // [longitude, latitude]
   };
 
-  @Column({ type: 'uuid' })
-  zoneId: string;
+  @Column({ type: 'uuid', nullable: true })
+  zoneId?: string;
 
   @Column({ type: 'char', length: 6 })
   districtId: string;
 
   @Column({ type: 'uuid' })
   userId: string;
+  
+  @Column({ type: 'integer', default: 5 })
+  notifyBefore?: number;
+
+  @Column({ type: 'boolean', default: true })
+  activateNotification: boolean;
 
   // RELACIÓN CON USUARIO
   @OneToOne(() => User, (user) => user.address)
